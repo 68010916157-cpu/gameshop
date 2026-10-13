@@ -1,123 +1,135 @@
 import streamlit as st
-import pandas as pd
-from datetime import datetime
 
-# ตั้งค่าหน้าตาเบื้องต้น
-st.set_page_config(page_title="Board Game Cafe System", page_icon="🎲", layout="wide")
+# ==========================================
+# INITIALIZATION (การกำหนดค่าเริ่มต้น)
+# ==========================================
+IN_STORE_RATE = 50      # ค่าบริการเล่นในร้าน 50 บาท/คน/ชั่วโมง
+LATE_FEE_RATE = 20      # ค่าปรับคืนเกมสาย 20 บาท/วัน/รายการ
+MEMBER_DISCOUNT = 0.10  # ส่วนลดสมาชิก 10%
+VAT_RATE = 0.07         # ภาษีมูลค่าเพิ่ม 7%
 
-st.title("🎲 ระบบจัดการร้านบอร์ดเกม (Board Game Cafe)")
-st.caption("ระบบบริการเล่นในร้าน เช่า-คืนเกม และคำนวณส่วนลดพร้อมภาษี VAT 7%")
+st.set_page_config(page_title="GAME SHOP RECEIPT", page_icon="🎲", layout="centered")
 
-# ข้อมูลเกมตัวอย่าง 
-if 'games' not in st.session_state:
-    st.session_state['games'] = [
-        {"id": 101, "name": "Catan", "rate_per_day": 50, "stock": 3},
-        {"id": 102, "name": "Codenames", "rate_per_day": 30, "stock": 5},
-        {"id": 103, "name": "Splendor", "rate_per_day": 40, "stock": 2},
-        {"id": 104, "name": "Avalon", "rate_per_day": 35, "stock": 4},
-        {"id": 105, "name": "Dixit", "rate_per_day": 45, "stock": 3},
-    ]
+st.title("🎲 GAME SHOP MANAGEMENT SYSTEM")
+st.caption("ระบบคำนวณค่าบริการ เล่นในร้าน / เช่า / คืนเกม ตามอัลกอริทึม")
 
-# ข้อมูลตารางการใช้บริการในร้าน/เช่า
-if 'rentals' not in st.session_state:
-    st.session_state['rentals'] = []
+# ==========================================
+# USER INPUT: CUSTOMER & SERVICE SELECTION
+# ==========================================
+customer_name_input = st.text_input("Enter Customer Name (ชื่อลูกค้า):", value="")
+customer_name = customer_name_input.strip() if customer_name_input.strip() != "" else "General Customer"
 
-tab1, tab2, tab3 = st.tabs(["🎮 บริการเล่นในร้าน / เช่าเกม", "🔄 คืนเกม", "📊 รายการธุรกรรม"])
+service_option = st.radio(
+    "Select Service Type (เลือกประเภทบริการ):",
+    ["1 = In-Store Play (เล่นในร้าน)", "2 = Game Rental Service (เช่าเกม)", "3 = Game Return Service (คืนเกม/ค่าปรับ)"]
+)
 
-# --- TAB 1: เช่า / เล่นในร้าน ---
-with tab1:
-    st.header("ทำรายการเช่า หรือ นั่งเล่นในร้าน")
-    col1, col2 = st.columns([1, 1])
-    
+# แปลงตัวเลือกเป็น service_type INTEGER (1, 2, 3)
+service_type = int(service_option.split("=")[0].strip())
+
+subtotal = 0.0
+discount = 0.0
+total_after_discount = 0.0
+vat = 0.0
+net_total = 0.0
+
+st.markdown("---")
+
+# ==========================================
+# PROCESS SERVICE SELECTION (SWITCH service_type)
+# ==========================================
+
+# CASE 1: In-Store Play
+if service_type == 1:
+    st.subheader("🎮 CASE 1: In-Store Play (เล่นในร้าน)")
+    col1, col2 = st.columns(2)
     with col1:
-        customer_name = st.text_input("ชื่อลูกค้า", value="ลูกค้าทั่วไป")
-        service_type = st.radio("ประเภทบริการ", ["เล่นในร้าน (In-Store Play)", "เช่ากลับบ้าน (Rental)"])
-        is_member = st.checkbox("เป็นสมาชิก (ส่วนลด 10%)")
-        
+        players = st.number_input("Enter number of players (> 0):", min_value=1, value=1, step=1)
     with col2:
-        df_games = pd.DataFrame(st.session_state['games'])
-        selected_game_names = st.multiselect(
-            "เลือกบอร์ดเกมที่ต้องการ (เลือกได้หลายรายการ)", 
-            options=df_games['name'].tolist()
-        )
+        hours = st.number_input("Enter hours (> 0):", min_value=1, value=1, step=1)
+    
+    # subtotal = players * hours * IN_STORE_RATE
+    subtotal = float(players * hours * IN_STORE_RATE)
+
+# CASE 2: Game Rental Service
+elif service_type == 2:
+    st.subheader("📦 CASE 2: Game Rental Service (เช่าเกม)")
+    num_items = st.number_input("Enter total number of games to rent:", min_value=1, value=1, step=1)
+    
+    subtotal = 0.0
+    for i in range(int(num_items)):
+        st.markdown(f"**Game #{i+1}**")
+        col_name, col_rate, col_days = st.columns([2, 1, 1])
+        with col_name:
+            game_name = st.text_input(f"Game Title #{i+1}", value=f"Game {i+1}", key=f"rent_title_{i}")
+        with col_rate:
+            daily_rate = st.number_input(f"Daily rate (>= 0)", min_value=0.0, value=50.0, key=f"rent_rate_{i}")
+        with col_days:
+            rental_days = st.number_input(f"Rental days (> 0)", min_value=1, value=1, step=1, key=f"rent_days_{i}")
         
-        hours_or_days = st.number_input(
-            "จำนวนชั่วโมง (กรณีเล่นในร้าน) / จำนวนวัน (กรณีเช่ากลับบ้าน)", 
-            min_value=1, value=1, step=1
-        )
+        item_total = daily_rate * rental_days
+        subtotal += item_total
 
-    if st.button("คำนวณและบันทึกรายการ", type="primary"):
-        if not selected_game_names:
-            st.error("กรุณาเลือกเกมอย่างน้อย 1 รายการ")
-        else:
-            selected_games = df_games[df_games['name'].isin(selected_game_names)]
-            
-            # คำนวณราคาพื้นฐาน
-            if service_type == "เล่นในร้าน (In-Store Play)":
-                base_rate = 40  # ค่าบริการเล่นในร้าน 40 บาท/ชั่วโมง/คน
-                subtotal = base_rate * hours_or_days * len(selected_game_names)
-            else:
-                subtotal = selected_games['rate_per_day'].sum() * hours_or_days
-            
-            # ส่วนลดสมาชิก
-            discount = subtotal * 0.10 if is_member else 0.0
-            price_after_discount = subtotal - discount
-            
-            # คำนวณ VAT 7%
-            vat = price_after_discount * 0.07
-            total_amount = price_after_discount + vat
-            
-            st.success("บันทึกรายการเรียบร้อย!")
-            
-            # แสดงใบเสร็จ/สรุปยอด
-            st.subheader("🧾 สรุปยอดชำระเงิน")
-            res_col1, res_col2 = st.columns(2)
-            with res_col1:
-                st.write(f"**ลูกค้า:** {customer_name}")
-                st.write(f"**รายการเกม:** {', '.join(selected_game_names)}")
-                st.write(f"**ประเภท:** {service_type}")
-            with res_col2:
-                st.write(f"ยอดรวมก่อนส่วนลด: {subtotal:,.2f} บาท")
-                st.write(f"ส่วนลดสมาชิก (10%): -{discount:,.2f} บาท")
-                st.write(f"ภาษีมูลค่าเพิ่ม (VAT 7%): +{vat:,.2f} บาท")
-                st.markdown(f"### **ยอดชำระสุทธิ: {total_amount:,.2f} บาท**")
-            
-            # บันทึกข้อมูล
-            st.session_state['rentals'].append({
-                "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "customer": customer_name,
-                "type": service_type,
-                "items": ", ".join(selected_game_names),
-                "total": total_amount,
-                "status": "กำลังใช้งาน/เช่าอยู่"
-            })
+# CASE 3: Game Return Service
+elif service_type == 3:
+    st.subheader("🔄 CASE 3: Game Return Service (คืนเกม)")
+    num_items = st.number_input("Enter total number of games to return:", min_value=1, value=1, step=1)
+    
+    subtotal = 0.0
+    for i in range(int(num_items)):
+        st.markdown(f"**Game #{i+1}**")
+        col_name, col_days = st.columns([2, 2])
+        with col_name:
+            game_name = st.text_input(f"Game Title #{i+1}", value=f"Game {i+1}", key=f"return_title_{i}")
+        with col_days:
+            late_days = st.number_input(f"Late days (>= 0)", min_value=0, value=0, step=1, key=f"return_late_{i}")
+        
+        item_fee = late_days * LATE_FEE_RATE
+        subtotal += float(item_fee)
 
-# --- TAB 2: คืนเกม ---
-with tab2:
-    st.header("ทำรายการคืนเกม")
-    if len(st.session_state['rentals']) == 0:
-        st.info("ยังไม่มีรายการเช่าในระบบ")
+# ==========================================
+# DISCOUNT AND VAT CALCULATION
+# ==========================================
+st.markdown("---")
+if service_type in [1, 2]:
+    is_member = st.checkbox("Is customer a member? (เป็นสมาชิกเพื่อรับส่วนลด 10%)", value=False)
+    
+    if is_member:
+        discount = subtotal * MEMBER_DISCOUNT
     else:
-        active_rentals = [r for r in st.session_state['rentals'] if r['status'] == "กำลังใช้งาน/เช่าอยู่"]
-        if not active_rentals:
-            st.info("ไม่มีรายการที่ค้างคืนอยู่")
-        else:
-            rental_options = [f"{r['customer']} - {r['items']} ({r['time']})" for r in active_rentals]
-            selected_return = st.selectbox("เลือกรายการที่ต้องการคืน", options=rental_options)
-            
-            if st.button("ยืนยันการรับคืน"):
-                for r in st.session_state['rentals']:
-                    if f"{r['customer']} - {r['items']} ({r['time']})" == selected_return:
-                        r['status'] = "คืนเรียบร้อยแล้ว"
-                        break
-                st.success("รับคืนรายการสำเร็จ!")
-                st.rerun()
+        discount = 0.0
+        
+    total_after_discount = subtotal - discount
+    vat = total_after_discount * VAT_RATE
+    net_total = total_after_discount + vat
 
-# --- TAB 3: รายการธุรกรรมทั้งหมด ---
-with tab3:
-    st.header("ประวัติการทำรายการ")
-    if len(st.session_state['rentals']) > 0:
-        df_log = pd.DataFrame(st.session_state['rentals'])
-        st.dataframe(df_log, use_container_width=True)
-    else:
-        st.write("ยังไม่มีข้อมูลธุรกรรม")
+elif service_type == 3:
+    discount = 0.0
+    vat = 0.0
+    net_total = subtotal
+
+# ==========================================
+# OUTPUT RECEIPT GENERATION
+# ==========================================
+if st.button("PRINT RECEIPT / คำนวณและออกใบเสร็จ", type="primary", use_container_width=True):
+    st.code(f"""
+========================================
+          GAME SHOP RECEIPT             
+========================================
+Customer Name : {customer_name}
+Service Type  : {service_type}
+----------------------------------------
+""", language="text")
+
+    if service_type in [1, 2]:
+        st.code(f"""Subtotal            : {subtotal:,.2f} THB
+Member Discount(10%): -{discount:,.2f} THB
+VAT (7%)            : +{vat:,.2f} THB
+----------------------------------------
+NET TOTAL AMOUNT    : {net_total:,.2f} THB
+========================================
+""", language="text")
+    elif service_type == 3:
+        st.code(f"""TOTAL LATE FEE      : {net_total:,.2f} THB
+========================================
+""", language="text")
