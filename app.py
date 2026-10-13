@@ -8,8 +8,8 @@ st.set_page_config(page_title="Board Game Cafe System", page_icon="🎲", layout
 st.title("🎲 ระบบจัดการร้านบอร์ดเกม (Board Game Cafe)")
 st.caption("ระบบบริการเล่นในร้าน เช่า-คืนเกม และคำนวณส่วนลดพร้อมภาษี VAT 7%")
 
-# ข้อมูลเกมตัวอย่าง
-if 'games' not in st.state_state:
+# ข้อมูลเกมตัวอย่าง 
+if 'games' not in st.session_state:
     st.session_state['games'] = [
         {"id": 101, "name": "Catan", "rate_per_day": 50, "stock": 3},
         {"id": 102, "name": "Codenames", "rate_per_day": 30, "stock": 5},
