@@ -10,10 +10,6 @@ VAT_RATE = 0.07         # ภาษีมูลค่าเพิ่ม 7%
 
 st.set_page_config(page_title="GAME SHOP RECEIPT", page_icon="🎲", layout="centered")
 
-# สร้าง Session State สำหรับเก็บประวัติการทำรายการ
-if "history" not in st.session_state:
-    st.session_state.history = []
-
 st.title("🎲 GAME SHOP MANAGEMENT SYSTEM")
 st.caption("ระบบคำนวณค่าบริการ เล่นในร้าน / เช่า / คืนเกม ตามอัลกอริทึม")
 
@@ -36,7 +32,6 @@ discount = 0.0
 total_after_discount = 0.0
 vat = 0.0
 net_total = 0.0
-items_detail = []  # เก็บรายละเอียดรายการสินค้า/ผู้คืน
 
 st.markdown("---")
 
@@ -53,8 +48,8 @@ if service_type == 1:
     with col2:
         hours = st.number_input("Enter hours (> 0):", min_value=1, value=1, step=1)
     
+    # subtotal = players * hours * IN_STORE_RATE
     subtotal = float(players * hours * IN_STORE_RATE)
-    items_detail.append(f"In-Store Play ({players} players, {hours} hrs)")
 
 # CASE 2: Game Rental Service
 elif service_type == 2:
@@ -74,16 +69,10 @@ elif service_type == 2:
         
         item_total = daily_rate * rental_days
         subtotal += item_total
-        items_detail.append(f"Rental: {game_name} ({rental_days} days)")
 
 # CASE 3: Game Return Service
 elif service_type == 3:
     st.subheader("🔄 CASE 3: Game Return Service (คืนเกม)")
-    
-    # ระบุชื่อผู้คืนเกม
-    returner_name_input = st.text_input("Enter Returner Name (ชื่อผู้คืนเกม):", value=customer_name)
-    returner_name = returner_name_input.strip() if returner_name_input.strip() != "" else customer_name
-    
     num_items = st.number_input("Enter total number of games to return:", min_value=1, value=1, step=1)
     
     subtotal = 0.0
@@ -97,7 +86,6 @@ elif service_type == 3:
         
         item_fee = late_days * LATE_FEE_RATE
         subtotal += float(item_fee)
-        items_detail.append(f"Return: {game_name} (Late {late_days} days)")
 
 # ==========================================
 # DISCOUNT AND VAT CALCULATION
@@ -121,21 +109,15 @@ elif service_type == 3:
     net_total = subtotal
 
 # ==========================================
-# OUTPUT RECEIPT GENERATION & HISTORY
+# OUTPUT RECEIPT GENERATION
 # ==========================================
 if st.button("PRINT RECEIPT / คำนวณและออกใบเสร็จ", type="primary", use_container_width=True):
-    
-    # กำหนดชื่อที่จะแสดงในใบเสร็จและการบันทึกประวัติ
-    display_name = returner_name if service_type == 3 else customer_name
-    service_name_map = {1: "In-Store Play", 2: "Game Rental", 3: "Game Return"}
-    
-    # แสดงใบเสร็จ
     st.code(f"""
 ========================================
           GAME SHOP RECEIPT             
 ========================================
-Customer/Returner Name : {display_name}
-Service Type           : {service_type} ({service_name_map[service_type]})
+Customer Name : {customer_name}
+Service Type  : {service_type}
 ----------------------------------------
 """, language="text")
 
@@ -151,27 +133,3 @@ NET TOTAL AMOUNT    : {net_total:,.2f} THB
         st.code(f"""TOTAL LATE FEE      : {net_total:,.2f} THB
 ========================================
 """, language="text")
-
-    # บันทึกลงใน Session State (ประวัติการทำรายการ)
-    record = {
-        "Customer/Returner": display_name,
-        "Service": service_name_map[service_type],
-        "Details": ", ".join(items_detail),
-        "Total Amount (THB)": f"{net_total:,.2f}"
-    }
-    st.session_state.history.append(record)
-    st.success("บันทึกประวัติรายการเรียบร้อยแล้ว!")
-
-# ==========================================
-# DISPLAY TRANSACTION HISTORY
-# ==========================================
-st.markdown("---")
-st.subheader("📜 Transaction History (ประวัติการทำรายการ)")
-
-if st.session_state.history:
-    st.dataframe(st.session_state.history, use_container_width=True)
-    if st.button("Clear History (ล้างประวัติ)"):
-        st.session_state.history = []
-        st.rerun()
-else:
-    st.info("ยังไม่มีประวัติการทำรายการ")
