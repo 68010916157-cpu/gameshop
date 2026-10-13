@@ -9,7 +9,7 @@ st.title("🎲 ระบบจัดการร้านบอร์ดเก�
 st.caption("ระบบบริการเล่นในร้าน เช่า-คืนเกม และคำนวณส่วนลดพร้อมภาษี VAT 7%")
 
 # ข้อมูลเกมตัวอย่าง
-if 'games' not in st.state_dict:
+if 'games' not in st.state_state:
     st.session_state['games'] = [
         {"id": 101, "name": "Catan", "rate_per_day": 50, "stock": 3},
         {"id": 102, "name": "Codenames", "rate_per_day": 30, "stock": 5},
